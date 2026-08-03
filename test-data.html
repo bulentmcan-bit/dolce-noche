@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Dolce Noche — Test Verileri</title>
+<link href="https://fonts.googleapis.com/css2?family=Cinzel+Decorative:wght@700&display=swap" rel="stylesheet">
+<style>
+:root{--cream:#FDF4F3;--ink:#34252A;--muted:#9A8288;--line:#F0DEDE;
+  --berry:#B84A5E;--gold:#C99A46;--green:#2E7D5B;--red:#C0392B}
+*{box-sizing:border-box}
+body{margin:0;background:var(--cream);color:var(--ink);padding:0 0 40px;
+  font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;font-size:16px}
+.top{background:var(--ink);color:#fff;padding:calc(16px + env(safe-area-inset-top)) 18px 16px;border-bottom:3px solid var(--gold)}
+.wm{font-family:"Cinzel Decorative",Georgia,serif;color:var(--gold);font-size:18px}
+.sub{font-size:11px;letter-spacing:2px;text-transform:uppercase;color:#C9B3B7;margin-top:3px}
+.wrap{max-width:620px;margin:0 auto;padding:18px 14px}
+.card{background:#fff;border:1px solid var(--line);border-radius:16px;padding:16px;margin-bottom:14px;
+  box-shadow:0 8px 30px rgba(74,45,20,.10)}
+h2{font-size:17px;margin:0 0 6px}
+p{color:var(--muted);font-size:14px;margin:0 0 14px;line-height:1.5}
+button{width:100%;padding:16px;border:0;border-radius:13px;font-size:16px;font-weight:700;
+  color:#fff;font-family:inherit;cursor:pointer}
+.b1{background:var(--berry)}.b2{background:var(--gold)}.b3{background:var(--red)}
+button:disabled{opacity:.5}
+.log{background:var(--ink);color:#9BE8B8;font-family:ui-monospace,Menlo,monospace;font-size:12.5px;
+  padding:14px;border-radius:13px;white-space:pre-wrap;line-height:1.6;margin-top:16px;min-height:60px}
+.warn{background:#FBF1E4;border-radius:11px;padding:11px 13px;font-size:13.5px;color:#8E3247;margin-bottom:14px}
+</style>
+</head>
+<body>
+<div class="top"><div class="wm">Dolce Noche</div><div class="sub">Test Verileri</div></div>
+<div class="wrap">
+
+  <div class="warn">Bu sayfa yalnızca deneme içindir. Yazdığı her kayıt <b>test</b> olarak işaretlenir ve
+  aşağıdaki silme düğmesiyle tek seferde temizlenir — gerçek siparişlere dokunmaz.</div>
+
+  <div class="card">
+    <h2>1 · Test siparişlerini yükle</h2>
+    <p>Kafe 1–5, her birine 5 sipariş (toplam 25). Her kafede 3 geçmiş teslimat, 2 bekleyen sipariş; ödenmiş, borçlu ve kısmi ödemeler karışık.</p>
+    <button class="b1" id="bSeed" onclick="seed()">Test verilerini yükle</button>
+  </div>
+
+  <div class="card">
+    <h2>2 · Zil testi</h2>
+    <p>Tek bir yeni sipariş gönderir. Sipariş defterini başka bir telefonda veya sekmede açık tutun — alarm çalmalı.</p>
+    <button class="b2" id="bRing" onclick="ringTest()">Canlı sipariş gönder</button>
+  </div>
+
+  <div class="card">
+    <h2>3 · Temizlik</h2>
+    <p>Test olarak işaretlenmiş bütün siparişleri ve ödemeleri siler.</p>
+    <button class="b3" id="bWipe" onclick="wipe()">Test verilerini sil</button>
+  </div>
+
+  <div class="log" id="log">Hazır.</div>
+</div>
+
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+<script>
+const DB_URL = "https://dolche-noche-default-rtdb.europe-west1.firebasedatabase.app";
+let db = null;
+try{ firebase.initializeApp({databaseURL:DB_URL}); db = firebase.database(); }catch(e){}
+
+const log = m => { const l=document.getElementById("log"); l.textContent += "\n" + m; l.scrollTop=1e6; };
+const money = n => "₺" + Math.round(n).toLocaleString("tr-TR");
+
+/* ---- same catalog + slice rule as the shop ---- */
+const CAKES = [
+  ["Elmalı Turta",1320],["Orman Meyveli Turta",1320],["Limonlu Turta",1320],
+  ["Lotus Cheesecake 21cm",1320],["Chocolate Cheesecake 21cm",1320],["Cookies & Cream Cheesecake 21cm",1320],
+  ["Lemon Cheesecake 21cm",1320],["Strawberry Cheesecake 21cm",1320],["Mango Cheesecake 21cm",1320],
+  ["Blueberry Cheesecake 21cm",1320],["Tiramisu 21cm",1320],
+  ["Mango Cheesecake 23cm",1500],["Lotus Cheesecake 23cm",1500],["Chocolate Cheesecake 23cm",1500],
+  ["Strawberry Cheesecake 23cm",1500],["Tiramisu 23cm",1500],
+  ["San Sebastian",1500],["Nutella Cookie Pie",1500]
+];
+const SMALL = [
+  ["Lotus Kurabiye",140],["Nutella Kurabiye",140],["Kinder Kurabiye",140],
+  ["Brownie",160],["Beyaz Çikolatalı Brownie",165],["Brookie",170],["Nutella Muffin",130],
+  ["Oreo Magnolia",140],["Lotus Magnolia",140],["Red Velvet Magnolia",140],["Blueberry Magnolia",140]
+];
+const slicePrice = w => Math.round((w/8)*1.10);
+const SLICES = CAKES.map(([n,p]) => [n + " — tek dilim", slicePrice(p)]);
+
+const CAFES = [
+  {name:"Kafe 1", phone:"905338110042", person:"Ayşe"},
+  {name:"Kafe 2", phone:"905338110119", person:"Mehmet"},
+  {name:"Kafe 3", phone:"905338110287", person:"Deniz"},
+  {name:"Kafe 4", phone:"905338110356", person:"Gökhan"},
+  {name:"Kafe 5", phone:"905338110471", person:"Selin"}
+];
+const PER_CAFE = 5;   // her kafeye kaç sipariş
+
+const rnd  = n => Math.floor(Math.random()*n);
+const pick = a => a[rnd(a.length)];
+const pad  = n => String(n).padStart(2,"0");
+const iso  = d => d.getFullYear()+"-"+pad(d.getMonth()+1)+"-"+pad(d.getDate());
+const dayShift = n => { const d=new Date(); d.setDate(d.getDate()+n); return d; };
+function makeNo(d){
+  return "DN"+String(d.getFullYear()).slice(2)+pad(d.getMonth()+1)+pad(d.getDate())+"-"+(1000+rnd(9000));
+}
+function buildItems(){
+  const items = [], lines = 2 + rnd(3);
+  const used = {};
+  for(let i=0;i<lines;i++){
+    const roll = Math.random();
+    const [n,p] = roll < .45 ? pick(CAKES) : roll < .70 ? pick(SLICES) : pick(SMALL);
+    if(used[n]) continue; used[n] = 1;
+    const qty = p > 900 ? 1 + rnd(3) : p > 200 ? 4 + rnd(9) : 6 + rnd(15);
+    items.push({name:n, qty, price:p});
+  }
+  return items.length ? items : [{name:"Brownie", qty:8, price:160}];
+}
+
+const NOTES = ["Sabah 09:00'dan önce lütfen","Kutulu olsun","Fatura kesilecek",
+  "Arka kapıdan teslim","Bir dilim ekstra Lotus koyabilir misiniz?"];
+
+async function seed(){
+  if(!db){ log("✗ Firebase'e bağlanılamadı."); return; }
+  document.getElementById("bSeed").disabled = true;
+  log("\nYükleniyor…");
+  const orders = {}, payments = {};
+  let totalOrders = 0, grandOwed = 0;
+
+  CAFES.forEach((cafe, ci) => {
+    const count = PER_CAFE;
+    let delivered = 0;
+    for(let k=0;k<count;k++){
+      /* çoğu geçmiş, birkaçı önümüzdeki günler */
+      const offset = k < count-2 ? -(2 + rnd(24)) : (1 + rnd(4));
+      const d = dayShift(offset);
+      if(d.getDay() === 0) d.setDate(d.getDate()+1);   // pazar kapalı
+      const items = buildItems();
+      const total = items.reduce((s,i)=>s+i.qty*i.price,0);
+      const past  = offset < 0;
+      /* geçmiş siparişlerin bir kısmı ödenmiş, bir kısmı borç */
+      const status = !past ? "new" : (Math.random() < .45 ? "paid" : "sent");
+      const created = d.getTime() - (1+rnd(3))*864e5;
+      const id = "test_o"+ci+"_"+k+"_"+Date.now()+rnd(999);
+      orders[id] = {
+        no: makeNo(d), cafe: cafe.name, person: cafe.person, phone: cafe.phone,
+        delivery: iso(d), items, total,
+        notes: Math.random() < .3 ? pick(NOTES) : "",
+        status, createdAt: created,
+        sentAt: past ? d.getTime() : null,
+        paidAt: status === "paid" ? d.getTime()+864e5 : null,
+        late: Math.random() < .12,
+        src: "web", test: true
+      };
+      if(status !== "new") delivered += total;
+      /* ödenmiş siparişler için eşleşen ödeme kaydı */
+      if(status === "paid"){
+        payments["test_p"+ci+"_"+k+"_"+rnd(9999)] =
+          {cafe:cafe.name, amount:total, note:"Sipariş "+orders[id].no,
+           at:d.getTime()+864e5, orderId:id, test:true};
+      }
+      totalOrders++;
+    }
+    /* bazı kafeler borcun bir kısmını ödemiş olsun */
+    if(ci % 2 === 0){
+      const part = Math.round(delivered * (0.2 + Math.random()*0.4) / 50) * 50;
+      if(part > 0) payments["test_pp"+ci+"_"+rnd(9999)] =
+        {cafe:cafe.name, amount:part, note:"kısmi ödeme — havale",
+         at:Date.now()-rnd(6)*864e5, test:true};
+    }
+  });
+
+  try{
+    await db.ref("dolce/orders").update(orders);
+    await db.ref("dolce/payments").update(payments);
+    /* özet */
+    const bal = {};
+    Object.values(orders).forEach(o=>{ if(o.status!=="new") bal[o.cafe]=(bal[o.cafe]||0)+o.total; });
+    Object.values(payments).forEach(p=>{ bal[p.cafe]=(bal[p.cafe]||0)-p.amount; });
+    log("✓ "+totalOrders+" sipariş, "+Object.keys(payments).length+" ödeme yazıldı.\n");
+    Object.entries(bal).forEach(([c,v])=>{ log("  "+c+" — "+money(Math.max(0,v))); grandOwed += Math.max(0,v); });
+    log("\n  TOPLAM ALACAK: "+money(grandOwed));
+    log("\nSipariş defterini açıp kontrol edin.");
+  }catch(e){
+    log("✗ Yazılamadı: "+e.message+"\n\nFirebase kurallarını kontrol edin (dolce düğümü yazılabilir olmalı).");
+  }
+  document.getElementById("bSeed").disabled = false;
+}
+
+async function ringTest(){
+  if(!db){ log("✗ Firebase'e bağlanılamadı."); return; }
+  const cafe = pick(CAFES);
+  const d = dayShift(1);
+  const items = buildItems();
+  const total = items.reduce((s,i)=>s+i.qty*i.price,0);
+  const id = "test_ring_"+Date.now();
+  try{
+    await db.ref("dolce/orders/"+id).set({
+      no: makeNo(d), cafe: cafe.name, person: cafe.person, phone: cafe.phone,
+      delivery: iso(d), items, total, notes:"ZİL TESTİ",
+      status:"new", createdAt: Date.now(), late:false, src:"web", test:true
+    });
+    log("\n🔔 Gönderildi — "+cafe.name+" · "+money(total));
+  }catch(e){ log("✗ "+e.message); }
+}
+
+async function wipe(){
+  if(!db){ log("✗ Firebase'e bağlanılamadı."); return; }
+  if(!confirm("Test olarak işaretli bütün kayıtlar silinecek. Devam edilsin mi?")) return;
+  log("\nSiliniyor…");
+  try{
+    let n = 0;
+    for(const node of ["orders","payments"]){
+      const snap = await db.ref("dolce/"+node).once("value");
+      const val = snap.val() || {};
+      const kill = {};
+      Object.entries(val).forEach(([k,v])=>{ if(v && v.test === true){ kill[k] = null; n++; } });
+      if(Object.keys(kill).length) await db.ref("dolce/"+node).update(kill);
+    }
+    log("✓ "+n+" test kaydı silindi. Gerçek siparişler duruyor.");
+  }catch(e){ log("✗ "+e.message); }
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,911 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#34252A">
+<title>Dolce Noche — Sipariş Defteri</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cinzel+Decorative:wght@700&display=swap" rel="stylesheet">
+
+<!-- ============================================================
+     ▼▼▼  AYARLAR — SADECE BU KISMI DEĞİŞTİRİN  ▼▼▼
+     ============================================================ -->
+<script>
+const SETTINGS = {
+  databaseURL: "https://dolche-noche-default-rtdb.europe-west1.firebasedatabase.app",
+  pin: "1234",              // silme / düzeltme şifresi
+  slicePremium: 0.10,       // dilim = (pasta ÷ 8) + %10
+  slicesPerCake: 8,
+  handanPhone: "905338751022"
+};
+</script>
+<!-- ============================================================ -->
+
+<style>
+:root{
+  --cream:#FDF4F3; --card:#FFFFFF; --ink:#34252A; --muted:#9A8288;
+  --line:#F0DEDE; --berry:#B84A5E; --berry-deep:#8E3247; --gold:#C99A46;
+  --gold-soft:#FBF1E4; --green:#2E7D5B; --green-soft:#E7F3ED;
+  --red:#C0392B; --wa:#25D366;
+  --shadow:0 8px 30px rgba(74,45,20,.10);
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;padding:0}
+body{
+  background:var(--cream); color:var(--ink);
+  font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+  font-size:16px; line-height:1.45;
+  padding-bottom:calc(78px + env(safe-area-inset-bottom));
+}
+.num{font-variant-numeric:tabular-nums;font-feature-settings:"tnum"}
+.serif{font-family:"Cinzel Decorative",Georgia,serif}
+button{font-family:inherit;font-size:inherit;cursor:pointer;border:0;background:none;color:inherit}
+input,select,textarea{font-family:inherit;font-size:16px;width:100%;padding:12px 14px;
+  border:1px solid var(--line);border-radius:12px;background:#fff;color:var(--ink)}
+input:focus,select:focus,textarea:focus{outline:2px solid var(--berry);outline-offset:1px;border-color:transparent}
+button:focus-visible{outline:2px solid var(--berry);outline-offset:2px}
+
+/* ---------- ledger ribbon (top) ---------- */
+.ribbon{
+  position:sticky;top:0;z-index:40;background:var(--ink);color:#fff;
+  padding:calc(10px + env(safe-area-inset-top)) 16px 12px;
+  border-bottom:3px solid var(--gold);
+}
+.ribbon-top{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.wordmark{font-size:15px;letter-spacing:.5px;color:var(--gold)}
+.ribbon-fig{display:flex;align-items:flex-end;justify-content:space-between;gap:12px;margin-top:8px}
+.fig-l{font-size:11px;text-transform:uppercase;letter-spacing:1.4px;color:#D6BFA6;display:block;margin-bottom:2px}
+.fig-big{font-size:34px;font-weight:700;letter-spacing:-.5px;line-height:1}
+.fig-small{text-align:right}
+.fig-small .v{font-size:18px;font-weight:600}
+.dot{width:9px;height:9px;border-radius:50%;background:#7a6b6f;display:inline-block;margin-right:5px}
+.dot.on{background:#5BD98A;box-shadow:0 0 8px #5BD98A}
+.conn{font-size:11px;color:#C9B3B7;display:flex;align-items:center}
+
+/* ---------- tabs (bottom, thumb reach) ---------- */
+.tabs{
+  position:fixed;left:0;right:0;bottom:0;z-index:45;display:flex;
+  background:#fff;border-top:1px solid var(--line);
+  padding-bottom:env(safe-area-inset-bottom);box-shadow:0 -6px 24px rgba(74,45,20,.08);
+}
+.tab{flex:1;padding:10px 4px 12px;text-align:center;color:var(--muted);font-size:11px;position:relative}
+.tab b{display:block;font-size:21px;line-height:1.2;font-weight:400}
+.tab.on{color:var(--berry)}
+.tab.on::before{content:"";position:absolute;top:0;left:22%;right:22%;height:3px;background:var(--berry);border-radius:0 0 3px 3px}
+.tab .badge{position:absolute;top:4px;right:calc(50% - 26px);min-width:19px;height:19px;border-radius:10px;
+  background:var(--berry);color:#fff;font-size:11px;font-weight:700;line-height:19px;padding:0 5px}
+
+.wrap{padding:14px 14px 24px;max-width:720px;margin:0 auto}
+.page{display:none}
+.page.on{display:block}
+
+h2.sec{font-size:12px;text-transform:uppercase;letter-spacing:1.6px;color:var(--muted);
+  margin:22px 2px 10px;font-weight:700}
+h2.sec:first-child{margin-top:4px}
+
+/* ---------- cards ---------- */
+.card{background:var(--card);border:1px solid var(--line);border-radius:16px;
+  box-shadow:var(--shadow);padding:14px;margin-bottom:12px;position:relative;overflow:hidden}
+.card.new{border-left:5px solid var(--berry)}
+.card.sent{border-left:5px solid var(--gold)}
+.card.paid{border-left:5px solid var(--green);opacity:.72}
+.card.late::after{content:"GEÇ SİPARİŞ";position:absolute;top:10px;right:-30px;transform:rotate(38deg);
+  background:var(--red);color:#fff;font-size:9px;letter-spacing:1px;font-weight:700;padding:3px 34px}
+.c-head{display:flex;justify-content:space-between;align-items:flex-start;gap:10px}
+.c-cafe{font-size:18px;font-weight:700;line-height:1.2}
+.c-meta{font-size:12.5px;color:var(--muted);margin-top:3px}
+.c-total{font-size:20px;font-weight:700;white-space:nowrap}
+.items{margin:11px 0 0;padding:11px 0 0;border-top:1px dashed var(--line);font-size:14.5px}
+.item{display:flex;justify-content:space-between;gap:10px;padding:2px 0}
+.item .q{color:var(--berry);font-weight:700;min-width:34px}
+.item .n{flex:1}
+.item .p{color:var(--muted)}
+.note{margin-top:9px;background:var(--gold-soft);border-radius:10px;padding:8px 11px;font-size:13.5px}
+.pill{display:inline-block;font-size:11px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;
+  padding:3px 9px;border-radius:20px;background:var(--gold-soft);color:var(--berry-deep)}
+.pill.g{background:var(--green-soft);color:var(--green)}
+
+.row{display:flex;gap:8px;margin-top:12px;flex-wrap:wrap}
+.btn{flex:1;min-width:96px;padding:13px 10px;border-radius:12px;font-weight:700;font-size:15px;text-align:center}
+.b-main{background:var(--berry);color:#fff}
+.b-gold{background:var(--gold);color:#fff}
+.b-green{background:var(--green);color:#fff}
+.b-wa{background:var(--wa);color:#fff}
+.b-ghost{background:#fff;border:1px solid var(--line);color:var(--ink)}
+.b-quiet{flex:0 0 auto;min-width:0;padding:13px 15px;background:#fff;border:1px solid var(--line);color:var(--muted)}
+
+/* ---------- open-order sheet header ---------- */
+.sheet-head{display:flex;justify-content:space-between;align-items:flex-end;gap:12px;
+  background:#fff;border:1px solid var(--line);border-left:5px solid var(--berry);
+  border-radius:16px;box-shadow:var(--shadow);padding:13px 15px;margin-bottom:10px}
+.sh-cap{display:block;font-size:10.5px;text-transform:uppercase;letter-spacing:1.4px;color:var(--muted);margin-bottom:1px}
+.sh-big{font-size:32px;font-weight:700;line-height:1}
+.sh-r{text-align:right}
+.sh-v{font-size:20px;font-weight:700}
+
+/* ---------- segmented toggle ---------- */
+.seg{display:flex;background:#F6E7E7;border-radius:12px;padding:3px;margin-bottom:16px}
+.seg-b{flex:1;padding:9px 6px;border-radius:9px;font-size:13.5px;font-weight:700;color:var(--muted)}
+.seg-b.on{background:#fff;color:var(--berry);box-shadow:0 2px 6px rgba(74,45,20,.10)}
+
+/* ---------- customer block on the sheet ---------- */
+.grp{margin-bottom:26px}
+.grp + .grp{padding-top:22px;border-top:2px solid var(--line)}
+.grp-head{display:flex;justify-content:space-between;align-items:baseline;gap:10px;
+  padding:0 4px 9px;margin-bottom:11px;border-bottom:2px solid var(--gold)}
+.grp-name{font-size:19px;font-weight:700;letter-spacing:-.2px}
+.grp-sub{font-size:12px;color:var(--muted);margin-top:2px}
+.grp-tot{font-size:19px;font-weight:700;white-space:nowrap;color:var(--berry-deep)}
+.grp-owed{font-size:11px;color:var(--muted);display:block;text-align:right;font-weight:400;margin-top:1px}
+
+/* ---------- account rows ---------- */
+.acct{background:#fff;border:1px solid var(--line);border-radius:16px;box-shadow:var(--shadow);
+  padding:14px;margin-bottom:10px}
+.acct-top{display:flex;justify-content:space-between;align-items:center;gap:12px}
+.acct-name{font-size:17px;font-weight:700}
+.acct-sub{font-size:12.5px;color:var(--muted);margin-top:2px}
+.acct-bal{font-size:22px;font-weight:700;white-space:nowrap}
+.acct-bal.clear{color:var(--green)}
+.acct-bal.owed{color:var(--berry-deep)}
+
+/* ---------- bake list ---------- */
+.bake-day{background:#fff;border:1px solid var(--line);border-radius:16px;box-shadow:var(--shadow);
+  padding:14px;margin-bottom:12px}
+.bake-date{font-size:16px;font-weight:700;border-bottom:2px solid var(--gold);padding-bottom:8px;margin-bottom:4px;
+  display:flex;justify-content:space-between;align-items:baseline}
+.bake-date small{font-size:12px;font-weight:400;color:var(--muted)}
+.bake-line{display:flex;align-items:center;gap:12px;padding:9px 0;border-bottom:1px solid var(--line);font-size:15.5px}
+.bake-line:last-child{border-bottom:0}
+.bake-q{background:var(--ink);color:#fff;min-width:34px;height:34px;border-radius:9px;
+  display:flex;align-items:center;justify-content:center;font-weight:700;font-size:16px;flex:0 0 auto}
+.bake-line.done{opacity:.38;text-decoration:line-through}
+
+/* ---------- stat grid ---------- */
+.stats{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.stat{background:#fff;border:1px solid var(--line);border-radius:14px;padding:13px}
+.stat .l{font-size:11px;text-transform:uppercase;letter-spacing:1.2px;color:var(--muted)}
+.stat .v{font-size:23px;font-weight:700;margin-top:3px}
+.stat.wide{grid-column:1/-1}
+
+/* ---------- empty ---------- */
+.empty{text-align:center;padding:44px 20px;color:var(--muted)}
+.empty .mark{font-size:30px;color:var(--gold);margin-bottom:8px}
+.empty b{display:block;color:var(--ink);font-size:16px;margin-bottom:5px}
+
+/* ---------- sheet / modal ---------- */
+.overlay{position:fixed;inset:0;background:rgba(52,37,42,.55);z-index:60;
+  display:none;align-items:flex-end;justify-content:center;backdrop-filter:blur(3px)}
+.overlay.on{display:flex}
+.sheet{background:var(--cream);width:100%;max-width:640px;max-height:92vh;overflow:auto;
+  border-radius:22px 22px 0 0;padding:20px 16px calc(24px + env(safe-area-inset-bottom))}
+.sheet h3{margin:0 0 4px;font-size:20px}
+.sheet .sub{color:var(--muted);font-size:13.5px;margin-bottom:16px}
+.field{margin-bottom:12px}
+.field label{display:block;font-size:12.5px;font-weight:700;color:var(--muted);margin-bottom:5px;
+  text-transform:uppercase;letter-spacing:.8px}
+.close-x{position:absolute;right:14px;top:14px;font-size:26px;color:var(--muted);line-height:1;padding:4px 10px}
+
+/* ---------- alarm ---------- */
+.alarm{position:fixed;inset:0;z-index:90;background:var(--berry);color:#fff;
+  display:none;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:26px}
+.alarm.on{display:flex;animation:flash 1s steps(1) infinite}
+@keyframes flash{50%{background:var(--berry-deep)}}
+.alarm .bell{font-size:64px;animation:swing .6s ease-in-out infinite alternate}
+@keyframes swing{from{transform:rotate(-14deg)}to{transform:rotate(14deg)}}
+.alarm h2{font-size:30px;margin:14px 0 4px}
+.alarm .who{font-size:19px;opacity:.92}
+.alarm .amt{font-size:44px;font-weight:700;margin:14px 0 22px}
+.alarm button{background:#fff;color:var(--berry);padding:17px 42px;border-radius:14px;
+  font-size:19px;font-weight:700}
+@media (prefers-reduced-motion:reduce){
+  .alarm.on,.alarm .bell{animation:none}
+}
+
+/* ---------- toast ---------- */
+.toast{position:fixed;left:50%;transform:translateX(-50%);bottom:96px;z-index:80;
+  background:var(--ink);color:#fff;padding:12px 20px;border-radius:30px;font-size:14.5px;
+  box-shadow:var(--shadow);opacity:0;pointer-events:none;transition:opacity .25s}
+.toast.on{opacity:1}
+
+/* ---------- sound unlock gate ---------- */
+.gate{position:fixed;inset:0;z-index:100;background:var(--ink);color:#fff;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:30px}
+.gate.off{display:none}
+.gate .w{font-size:26px;color:var(--gold);margin-bottom:6px}
+.gate p{color:#D6BFA6;max-width:330px;font-size:15px;margin:6px 0 26px}
+.gate button{background:var(--gold);color:#fff;padding:17px 40px;border-radius:14px;font-size:18px;font-weight:700}
+</style>
+</head>
+<body>
+
+<!-- sound unlock -->
+<div class="gate" id="gate">
+  <div class="w serif">Dolce Noche</div>
+  <div style="letter-spacing:2px;font-size:11px;color:#C9B3B7;text-transform:uppercase">Sipariş Defteri</div>
+  <p>Zili açmak için dokunun. Sayfa açık kaldığı sürece yeni siparişlerde yüksek sesle uyarır.</p>
+  <button onclick="openBook()">Defteri aç</button>
+</div>
+
+<!-- alarm -->
+<div class="alarm" id="alarm">
+  <div class="bell">🔔</div>
+  <h2>Yeni sipariş!</h2>
+  <div class="who" id="alarmWho">—</div>
+  <div class="amt num" id="alarmAmt">₺0</div>
+  <button onclick="stopAlarm()">Gördüm</button>
+</div>
+
+<!-- ribbon -->
+<div class="ribbon">
+  <div class="ribbon-top">
+    <div class="wordmark serif">Dolce Noche</div>
+    <div class="conn"><span class="dot" id="dot"></span><span id="connTxt">bağlanıyor…</span></div>
+  </div>
+  <div class="ribbon-fig">
+    <div>
+      <span class="fig-l">Toplam alacak</span>
+      <span class="fig-big num" id="grandOwed">₺0</span>
+    </div>
+    <div class="fig-small">
+      <span class="fig-l">Bekleyen</span>
+      <span class="v num" id="pendingCount">0 sipariş</span>
+    </div>
+  </div>
+</div>
+
+<div class="wrap">
+
+  <!-- ============ SİPARİŞLER ============ -->
+  <div class="page on" id="p-orders">
+
+    <!-- açık sipariş föyü -->
+    <div class="sheet-head">
+      <div class="sh-l">
+        <span class="sh-cap">Açık siparişler</span>
+        <span class="sh-big num" id="shCount">0</span>
+      </div>
+      <div class="sh-r">
+        <span class="sh-cap">Hazırlanacak tutar</span>
+        <span class="sh-v num" id="shValue">₺0</span>
+      </div>
+    </div>
+
+    <div class="seg">
+      <button class="seg-b on" id="segCafe"  onclick="setView('cafe')">Kafeye göre</button>
+      <button class="seg-b"    id="segDate"  onclick="setView('date')">Güne göre</button>
+    </div>
+
+    <div id="newList"></div>
+
+    <div class="row" style="margin:16px 0 4px">
+      <button class="btn b-main" onclick="openAdd()">+ Elle sipariş ekle</button>
+    </div>
+
+    <h2 class="sec" id="sentHead">Teslim edildi — ödeme bekliyor</h2>
+    <div id="sentList"></div>
+  </div>
+
+  <!-- ============ HESAPLAR ============ -->
+  <div class="page" id="p-accounts">
+    <div class="stats" style="margin-bottom:16px">
+      <div class="stat"><div class="l">Toplam alacak</div><div class="v num" id="aOwed">₺0</div></div>
+      <div class="stat"><div class="l">Açık hesap</div><div class="v num" id="aCafes">0 kafe</div></div>
+    </div>
+    <div id="acctList"></div>
+    <div class="row"><button class="btn b-ghost" onclick="exportCSV()">Hesapları CSV indir</button></div>
+  </div>
+
+  <!-- ============ FIRIN ============ -->
+  <div class="page" id="p-bake">
+    <div class="sub" style="color:var(--muted);font-size:13.5px;margin-bottom:12px">
+      Teslim edilmemiş tüm siparişler, teslimat gününe göre birleştirildi.
+    </div>
+    <div id="bakeList"></div>
+  </div>
+
+  <!-- ============ RAPOR ============ -->
+  <div class="page" id="p-report">
+    <div class="stats">
+      <div class="stat"><div class="l">Bugün</div><div class="v num" id="rToday">₺0</div></div>
+      <div class="stat"><div class="l">Bu hafta</div><div class="v num" id="rWeek">₺0</div></div>
+      <div class="stat"><div class="l">Bu ay</div><div class="v num" id="rMonth">₺0</div></div>
+      <div class="stat"><div class="l">Tahsil edilen (ay)</div><div class="v num" id="rPaid">₺0</div></div>
+      <div class="stat wide"><div class="l">En çok satan (bu ay)</div><div class="v" id="rTop" style="font-size:18px">—</div></div>
+      <div class="stat wide"><div class="l">En iyi kafe (bu ay)</div><div class="v" id="rCafe" style="font-size:18px">—</div></div>
+    </div>
+
+    <h2 class="sec">Dilim fiyatı hesaplayıcı</h2>
+    <div class="card" style="margin-bottom:12px">
+      <div class="field" style="margin-bottom:8px">
+        <label>8 dilimlik pasta fiyatı (₺)</label>
+        <input id="sliceIn" type="number" inputmode="decimal" placeholder="1320" oninput="calcSlice()">
+      </div>
+      <div style="display:flex;justify-content:space-between;align-items:baseline;padding-top:6px;border-top:1px dashed var(--line)">
+        <span style="color:var(--muted);font-size:13.5px">Dilim fiyatı (÷8 + %10)</span>
+        <b class="num" id="sliceOut" style="font-size:24px;color:var(--berry)">₺0</b>
+      </div>
+    </div>
+
+    <h2 class="sec">Yedek</h2>
+    <div class="row">
+      <button class="btn b-ghost" onclick="exportCSV('all')">Tüm siparişleri CSV indir</button>
+    </div>
+    <div style="height:20px"></div>
+  </div>
+
+</div>
+
+<!-- tabs -->
+<div class="tabs">
+  <div class="tab on" id="t-orders" onclick="go('orders')"><b>🧾</b>Siparişler<span class="badge" id="tabBadge" style="display:none">0</span></div>
+  <div class="tab" id="t-accounts" onclick="go('accounts')"><b>💰</b>Hesaplar</div>
+  <div class="tab" id="t-bake" onclick="go('bake')"><b>🎂</b>Fırın</div>
+  <div class="tab" id="t-report" onclick="go('report')"><b>📊</b>Rapor</div>
+</div>
+
+<!-- add order sheet -->
+<div class="overlay" id="addOv">
+  <div class="sheet" style="position:relative">
+    <button class="close-x" onclick="closeAdd()">×</button>
+    <h3 class="serif">Elle sipariş</h3>
+    <div class="sub">Telefonla veya WhatsApp'tan gelen siparişler için.</div>
+    <div class="field"><label>Kafe adı</label><input id="mCafe" list="cafeList" placeholder="örn. Köşe Kahve Evi"><datalist id="cafeList"></datalist></div>
+    <div class="field"><label>Telefon (isteğe bağlı)</label><input id="mPhone" type="tel" placeholder="0533…"></div>
+    <div class="field"><label>Teslimat tarihi</label><input id="mDate" type="date"></div>
+    <div class="field"><label>Ürünler</label><div id="mItems"></div>
+      <button class="btn b-ghost" style="width:100%;margin-top:8px" onclick="addItemRow()">+ Satır ekle</button>
+    </div>
+    <div class="field"><label>Not</label><textarea id="mNotes" rows="2" placeholder="isteğe bağlı"></textarea></div>
+    <div style="display:flex;justify-content:space-between;align-items:baseline;padding:10px 2px;border-top:1px dashed var(--line)">
+      <span style="color:var(--muted)">Toplam</span><b class="num" id="mTotal" style="font-size:22px">₺0</b>
+    </div>
+    <button class="btn b-main" style="width:100%" onclick="saveManual()">Siparişi kaydet</button>
+  </div>
+</div>
+
+<!-- payment sheet -->
+<div class="overlay" id="payOv">
+  <div class="sheet" style="position:relative">
+    <button class="close-x" onclick="closePay()">×</button>
+    <h3 class="serif" id="payTitle">Ödeme al</h3>
+    <div class="sub" id="paySub">—</div>
+    <div class="field"><label>Alınan tutar (₺)</label><input id="payAmt" type="number" inputmode="decimal"></div>
+    <div class="field"><label>Not</label><input id="payNote" placeholder="nakit / havale"></div>
+    <button class="btn b-green" style="width:100%" onclick="savePay()">Ödemeyi kaydet</button>
+  </div>
+</div>
+
+<!-- cafe detail sheet -->
+<div class="overlay" id="cafeOv">
+  <div class="sheet" style="position:relative">
+    <button class="close-x" onclick="closeCafe()">×</button>
+    <h3 class="serif" id="cafeTitle">—</h3>
+    <div class="sub" id="cafeSub">—</div>
+    <div id="cafeLedger"></div>
+    <div class="row">
+      <button class="btn b-green" id="cafePayBtn">Ödeme al</button>
+      <button class="btn b-wa" id="cafeWaBtn">Hesap özeti gönder</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+<script>
+/* ============================================================
+   CATALOG — must match the prices on the ordering page
+   ============================================================ */
+const CAKE_8 = true;
+const PRODUCTS = [
+  {n:"Lotus Kurabiye",p:140},{n:"Nutella Kurabiye",p:140},{n:"Kinder Kurabiye",p:140},
+  {n:"Brownie",p:160},{n:"Beyaz Çikolatalı Brownie",p:165},{n:"Brookie",p:170},
+  {n:"Nutella Muffin",p:130},
+  {n:"Oreo Magnolia",p:140},{n:"Lotus Magnolia",p:140},{n:"Red Velvet Magnolia",p:140},{n:"Blueberry Magnolia",p:140},
+  {n:"Elmalı Turta",p:1320,c:CAKE_8},{n:"Orman Meyveli Turta",p:1320,c:CAKE_8},{n:"Limonlu Turta",p:1320,c:CAKE_8},
+  {n:"Lotus Cheesecake 21cm",p:1320,c:CAKE_8},{n:"Chocolate Cheesecake 21cm",p:1320,c:CAKE_8},
+  {n:"Cookies & Cream Cheesecake 21cm",p:1320,c:CAKE_8},{n:"Lemon Cheesecake 21cm",p:1320,c:CAKE_8},
+  {n:"Strawberry Cheesecake 21cm",p:1320,c:CAKE_8},{n:"Mango Cheesecake 21cm",p:1320,c:CAKE_8},
+  {n:"Blueberry Cheesecake 21cm",p:1320,c:CAKE_8},{n:"Tiramisu 21cm",p:1320,c:CAKE_8},
+  {n:"Mango Cheesecake 23cm",p:1500,c:CAKE_8},{n:"Blueberry Cheesecake 23cm",p:1500,c:CAKE_8},
+  {n:"Lotus Cheesecake 23cm",p:1500,c:CAKE_8},{n:"Chocolate Cheesecake 23cm",p:1500,c:CAKE_8},
+  {n:"Cookies & Cream Cheesecake 23cm",p:1500,c:CAKE_8},{n:"Lemon Cheesecake 23cm",p:1500,c:CAKE_8},
+  {n:"Strawberry Cheesecake 23cm",p:1500,c:CAKE_8},{n:"Tiramisu 23cm",p:1500,c:CAKE_8},
+  {n:"San Sebastian",p:1500,c:CAKE_8},{n:"Nutella Cookie Pie",p:1500,c:CAKE_8}
+];
+/* slice price = (cake ÷ 8) + 10% */
+const slicePrice = cake => Math.round((cake / SETTINGS.slicesPerCake) * (1 + SETTINGS.slicePremium));
+/* menu for manual entry: whole cakes + a "dilim" line for every 8-slice cake */
+const MENU = [];
+PRODUCTS.forEach(p => {
+  MENU.push({n:p.n, p:p.p});
+  if(p.c) MENU.push({n:p.n + " — DİLİM", p:slicePrice(p.p)});
+});
+
+/* ============================================================ */
+const $ = id => document.getElementById(id);
+const money = n => "₺" + Math.round(n||0).toLocaleString("tr-TR");
+const DAYS = ["Pazar","Pazartesi","Salı","Çarşamba","Perşembe","Cuma","Cumartesi"];
+const MONS = ["Ocak","Şubat","Mart","Nisan","Mayıs","Haziran","Temmuz","Ağustos","Eylül","Ekim","Kasım","Aralık"];
+const todayKey = () => new Date().toISOString().slice(0,10);
+function fmtDate(k){
+  if(!k) return "—";
+  const d = new Date(k+"T12:00:00"); if(isNaN(d)) return k;
+  const t = todayKey();
+  const tm = new Date(Date.now()+864e5).toISOString().slice(0,10);
+  const label = d.getDate()+" "+MONS[d.getMonth()]+" "+DAYS[d.getDay()];
+  if(k===t) return "BUGÜN · "+label;
+  if(k===tm) return "YARIN · "+label;
+  return label;
+}
+function toast(msg){ const t=$("toast"); t.textContent=msg; t.classList.add("on"); clearTimeout(t._x); t._x=setTimeout(()=>t.classList.remove("on"),2200); }
+function askPin(what){
+  const v = prompt(what+"\n\nŞifre:");
+  if(v === null) return false;
+  if(v.trim() !== SETTINGS.pin){ toast("Şifre yanlış"); return false; }
+  return true;
+}
+
+/* ============ state ============ */
+let ORDERS = {};     // id -> order
+let PAYMENTS = {};   // id -> payment
+let db = null, online = false, seeded = false;
+let bakeDone = JSON.parse(localStorage.getItem("dn_bake_done") || "{}");
+let VIEW = localStorage.getItem("dn_view") || "cafe";   // "cafe" | "date"
+function setView(v){
+  VIEW = v; localStorage.setItem("dn_view", v);
+  $("segCafe").classList.toggle("on", v === "cafe");
+  $("segDate").classList.toggle("on", v === "date");
+  render();
+}
+
+/* ============ storage layer (Firebase, localStorage fallback) ============ */
+function localSave(){
+  localStorage.setItem("dn_orders", JSON.stringify(ORDERS));
+  localStorage.setItem("dn_payments", JSON.stringify(PAYMENTS));
+}
+function connect(){
+  try{
+    firebase.initializeApp({databaseURL: SETTINGS.databaseURL});
+    db = firebase.database();
+    db.ref(".info/connected").on("value", s => {
+      online = !!s.val();
+      $("dot").classList.toggle("on", online);
+      $("connTxt").textContent = online ? "canlı" : "çevrimdışı";
+    });
+    db.ref("dolce/orders").on("value", s => { ORDERS = s.val() || {}; localSave(); afterData(); });
+    db.ref("dolce/payments").on("value", s => { PAYMENTS = s.val() || {}; localSave(); render(); });
+  }catch(e){
+    $("connTxt").textContent = "sadece bu telefon";
+    ORDERS = JSON.parse(localStorage.getItem("dn_orders")||"{}");
+    PAYMENTS = JSON.parse(localStorage.getItem("dn_payments")||"{}");
+    seeded = true; render();
+  }
+}
+function putOrder(id,o){ ORDERS[id]=o; localSave(); if(db) db.ref("dolce/orders/"+id).set(o); render(); }
+function patchOrder(id,patch){ ORDERS[id]=Object.assign({},ORDERS[id],patch); localSave();
+  if(db) db.ref("dolce/orders/"+id).update(patch); render(); }
+function dropOrder(id){ delete ORDERS[id]; localSave(); if(db) db.ref("dolce/orders/"+id).remove(); render(); }
+function putPayment(id,p){ PAYMENTS[id]=p; localSave(); if(db) db.ref("dolce/payments/"+id).set(p); render(); }
+
+/* ============ new-order detection + alarm ============ */
+let known = new Set();
+function afterData(){
+  const ids = Object.keys(ORDERS);
+  if(!seeded){ ids.forEach(i=>known.add(i)); seeded = true; render(); return; }
+  const fresh = ids.filter(i => !known.has(i) && ORDERS[i].src !== "manual");
+  ids.forEach(i=>known.add(i));
+  render();
+  if(fresh.length){
+    const o = ORDERS[fresh[fresh.length-1]];
+    fireAlarm(o);
+  }
+}
+
+let audioCtx = null, alarmTimer = null, alarmOn = false;
+function openBook(){
+  try{
+    audioCtx = new (window.AudioContext||window.webkitAudioContext)();
+    audioCtx.resume();
+    const g = audioCtx.createGain(); g.gain.value = 0.0001;
+    const o = audioCtx.createOscillator(); o.connect(g); g.connect(audioCtx.destination);
+    o.start(); o.stop(audioCtx.currentTime + .05);
+  }catch(e){}
+  if("Notification" in window && Notification.permission === "default") Notification.requestPermission();
+  keepAwake();
+  $("gate").classList.add("off");
+}
+function beep(freq, dur, at, vol){
+  if(!audioCtx) return;
+  const o = audioCtx.createOscillator(), g = audioCtx.createGain();
+  o.type = "square"; o.frequency.value = freq;
+  o.connect(g); g.connect(audioCtx.destination);
+  const t = audioCtx.currentTime + at;
+  g.gain.setValueAtTime(0.0001, t);
+  g.gain.exponentialRampToValueAtTime(vol, t + 0.01);
+  g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+  o.start(t); o.stop(t + dur + .02);
+}
+function ring(){
+  /* loud two-tone siren, three sweeps */
+  [0,.5,1.0].forEach(s=>{ beep(880,.22,s,.55); beep(1245,.22,s+.24,.55); });
+  if(navigator.vibrate) navigator.vibrate([400,150,400,150,600]);
+}
+function fireAlarm(o){
+  if(!o) return;
+  alarmOn = true;
+  $("alarmWho").textContent = o.cafe || "Yeni sipariş";
+  $("alarmAmt").textContent = money(o.total);
+  $("alarm").classList.add("on");
+  ring(); clearInterval(alarmTimer); alarmTimer = setInterval(ring, 1600);
+  try{
+    if("Notification" in window && Notification.permission === "granted")
+      new Notification("Yeni sipariş — " + (o.cafe||""), {body: money(o.total) + " · " + fmtDate(o.delivery)});
+  }catch(e){}
+  document.title = "🔔 YENİ SİPARİŞ — Dolce Noche";
+}
+function stopAlarm(){
+  alarmOn = false; clearInterval(alarmTimer);
+  $("alarm").classList.remove("on");
+  document.title = "Dolce Noche — Sipariş Defteri";
+}
+let wakeLock = null;
+async function keepAwake(){
+  try{ if("wakeLock" in navigator) wakeLock = await navigator.wakeLock.request("screen"); }catch(e){}
+}
+document.addEventListener("visibilitychange", ()=>{ if(document.visibilityState==="visible") keepAwake(); });
+
+/* ============ money maths ============
+   Café balance = delivered orders  −  payments received
+   Ticking "Ödendi" writes a payment equal to that order's total.
+   ================================== */
+function cafeKey(name){ return (name||"—").trim().toLocaleLowerCase("tr"); }
+function accounts(){
+  const map = {};
+  const touch = n => { const k = cafeKey(n);
+    if(!map[k]) map[k] = {name:(n||"—").trim(), delivered:0, paid:0, pending:0, orders:[], phone:""};
+    return map[k]; };
+  Object.entries(ORDERS).forEach(([id,o])=>{
+    const a = touch(o.cafe); a.orders.push(Object.assign({id},o));
+    if(o.phone) a.phone = o.phone;
+    if(o.status === "new") a.pending += (o.total||0);
+    else a.delivered += (o.total||0);
+  });
+  Object.values(PAYMENTS).forEach(p=>{ touch(p.cafe).paid += (p.amount||0); });
+  Object.values(map).forEach(a => a.balance = a.delivered - a.paid);
+  return map;
+}
+const grandOwed = () => Object.values(accounts()).reduce((s,a)=>s+Math.max(0,a.balance),0);
+
+/* ============ render ============ */
+function render(){
+  const accs = accounts();
+  const all = Object.entries(ORDERS).map(([id,o])=>Object.assign({id},o));
+  const news = all.filter(o=>o.status==="new").sort((a,b)=>(a.delivery||"").localeCompare(b.delivery||"") || (a.createdAt||0)-(b.createdAt||0));
+  const sent = all.filter(o=>o.status==="sent").sort((a,b)=>(b.sentAt||0)-(a.sentAt||0));
+
+  /* ribbon */
+  $("grandOwed").textContent = money(grandOwed());
+  $("pendingCount").textContent = news.length + " sipariş";
+  const badge = $("tabBadge");
+  badge.style.display = news.length ? "block" : "none";
+  badge.textContent = news.length;
+
+  /* ---- orders sheet: everything open, on one page ---- */
+  const openVal = news.reduce((s2,o)=>s2+(o.total||0),0);
+  $("shCount").textContent = news.length;
+  $("shValue").textContent = money(openVal);
+
+  if(!news.length){
+    $("newList").innerHTML = '<div class="empty"><div class="mark">◆</div>'
+      + '<b>Açık sipariş yok</b>Yeni sipariş geldiğinde burada, zille birlikte görünür.</div>';
+  }else if(VIEW === "cafe"){
+    /* müşteriye göre — her kafe kendi bloğunda, aralarında boşluk */
+    const g = {};
+    news.forEach(o=>{ const k = cafeKey(o.cafe); (g[k] = g[k] || {name:o.cafe, list:[]}).list.push(o); });
+    const blocks = Object.values(g).sort((a,b)=>
+      b.list.reduce((s2,o)=>s2+o.total,0) - a.list.reduce((s2,o)=>s2+o.total,0));
+    $("newList").innerHTML = blocks.map(b=>{
+      const tot = b.list.reduce((s2,o)=>s2+(o.total||0),0);
+      const acc = accs[cafeKey(b.name)];
+      const owed = acc && acc.balance > 0 ? "önceki bakiye " + money(acc.balance) : "hesap kapalı";
+      const dates = [...new Set(b.list.map(o=>o.delivery))].sort();
+      const when = dates.map(d=>fmtDate(d).replace(/^(BUGÜN|YARIN) · /,"$1 ")).join("  ·  ");
+      return `<div class="grp">
+        <div class="grp-head">
+          <div>
+            <div class="grp-name">${esc(b.name)}</div>
+            <div class="grp-sub">${b.list.length} açık sipariş · ${esc(when)}</div>
+          </div>
+          <div><div class="grp-tot num">${money(tot)}</div>
+            <span class="grp-owed">${owed}</span></div>
+        </div>
+        ${b.list.sort((x,y)=>(x.delivery||"").localeCompare(y.delivery||"")).map(orderCard).join("")}
+      </div>`;
+    }).join("");
+  }else{
+    /* güne göre — aynı yapı, teslimat gününe göre gruplanmış */
+    const g = {};
+    news.forEach(o=>{ const k = o.delivery || "—"; (g[k] = g[k] || []).push(o); });
+    $("newList").innerHTML = Object.keys(g).sort().map(d=>{
+      const tot = g[d].reduce((s2,o)=>s2+(o.total||0),0);
+      const cafes = new Set(g[d].map(o=>cafeKey(o.cafe))).size;
+      return `<div class="grp">
+        <div class="grp-head">
+          <div><div class="grp-name">${fmtDate(d)}</div>
+            <div class="grp-sub">${g[d].length} sipariş · ${cafes} kafe</div></div>
+          <div class="grp-tot num">${money(tot)}</div>
+        </div>
+        ${g[d].map(orderCard).join("")}
+      </div>`;
+    }).join("");
+  }
+  $("sentHead").style.display = sent.length ? "block" : "none";
+  $("sentList").innerHTML = sent.map(orderCard).join("");
+
+  /* ---- accounts ---- */
+  const list = Object.values(accs).filter(a=>a.balance>0 || a.pending>0)
+    .sort((a,b)=>b.balance-a.balance);
+  $("aOwed").textContent = money(grandOwed());
+  $("aCafes").textContent = list.filter(a=>a.balance>0).length + " kafe";
+  $("acctList").innerHTML = list.length ? list.map(a=>`
+    <div class="acct" onclick="openCafe('${esc(a.name)}')">
+      <div class="acct-top">
+        <div>
+          <div class="acct-name">${esc(a.name)}</div>
+          <div class="acct-sub">${a.orders.length} sipariş${a.pending?" · "+money(a.pending)+" hazırlanıyor":""}</div>
+        </div>
+        <div class="acct-bal num ${a.balance>0?"owed":"clear"}">${money(a.balance)}</div>
+      </div>
+    </div>`).join("")
+    : '<div class="empty"><div class="mark">◆</div><b>Bütün hesaplar kapalı</b>Alacak görünmüyor.</div>';
+  const dl = $("cafeList");
+  dl.innerHTML = Object.values(accs).map(a=>`<option value="${esc(a.name)}">`).join("");
+
+  /* ---- bake list ---- */
+  const byDay = {};
+  news.forEach(o=>{ const d=o.delivery||"—"; (byDay[d]=byDay[d]||[]).push(o); });
+  const days = Object.keys(byDay).sort();
+  $("bakeList").innerHTML = days.length ? days.map(d=>{
+    const tally = {};
+    byDay[d].forEach(o=>(o.items||[]).forEach(i=>{ tally[i.name]=(tally[i.name]||0)+(i.qty||0); }));
+    const rows = Object.entries(tally).sort((a,b)=>b[1]-a[1]).map(([n,q])=>{
+      const key = d+"|"+n;
+      return `<div class="bake-line ${bakeDone[key]?"done":""}" onclick="toggleBake('${esc(key)}')">
+        <div class="bake-q num">${q}</div><div style="flex:1">${esc(n)}</div></div>`;
+    }).join("");
+    const tot = byDay[d].reduce((s,o)=>s+(o.total||0),0);
+    return `<div class="bake-day"><div class="bake-date">${fmtDate(d)}
+      <small>${byDay[d].length} kafe · ${money(tot)}</small></div>${rows}</div>`;
+  }).join("")
+  : '<div class="empty"><div class="mark">◆</div><b>Fırın listesi boş</b>Hazırlanacak sipariş yok.</div>';
+
+  /* ---- report ---- */
+  report(all);
+}
+function esc(s){ return String(s||"").replace(/[&<>"']/g, c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c])); }
+
+function orderCard(o){
+  const items = (o.items||[]).map(i=>`<div class="item"><span class="q num">${i.qty}×</span>
+    <span class="n">${esc(i.name)}</span><span class="p num">${money(i.qty*i.price)}</span></div>`).join("");
+  const late = o.late ? " late" : "";
+  const isNew = o.status==="new";
+  return `<div class="card ${o.status}${late}">
+    <div class="c-head">
+      <div style="flex:1">
+        <div class="c-cafe">${esc(o.cafe)}</div>
+        <div class="c-meta">${esc(o.no||"")} · ${fmtDate(o.delivery)}${o.person?" · "+esc(o.person):""}</div>
+      </div>
+      <div class="c-total num">${money(o.total)}</div>
+    </div>
+    <div class="items">${items||'<span style="color:var(--muted)">—</span>'}</div>
+    ${o.notes?`<div class="note">📝 ${esc(o.notes)}</div>`:""}
+    <div class="row">
+      ${isNew
+        ? `<button class="btn b-gold" onclick="markSent('${o.id}')">Teslim edildi ✓</button>`
+        : `<button class="btn b-green" onclick="markPaid('${o.id}')">Ödendi ✓</button>`}
+      ${o.phone?`<a class="btn b-wa" style="text-decoration:none" href="https://wa.me/${String(o.phone).replace(/[^0-9]/g,"")}" target="_blank">WhatsApp</a>`:""}
+      <button class="btn b-quiet" onclick="removeOrder('${o.id}')">🗑</button>
+    </div>
+  </div>`;
+}
+function toggleBake(key){
+  bakeDone[key] = !bakeDone[key];
+  localStorage.setItem("dn_bake_done", JSON.stringify(bakeDone));
+  render();
+}
+
+/* ============ actions ============ */
+function markSent(id){
+  patchOrder(id,{status:"sent", sentAt:Date.now()});
+  toast("Teslim edildi — hesaba işlendi");
+}
+function markPaid(id){
+  const o = ORDERS[id]; if(!o) return;
+  const pid = "p"+Date.now()+Math.floor(Math.random()*99);
+  putPayment(pid,{cafe:o.cafe, amount:o.total, note:"Sipariş "+(o.no||id), at:Date.now(), orderId:id});
+  patchOrder(id,{status:"paid", paidAt:Date.now()});
+  toast("Ödeme alındı");
+}
+function removeOrder(id){
+  const o = ORDERS[id]; if(!o) return;
+  if(!askPin("“"+(o.cafe||"")+"” siparişi silinecek.")) return;
+  dropOrder(id); toast("Sipariş silindi");
+}
+
+/* ---- manual order ---- */
+let mRows = [];
+function openAdd(){
+  mRows = []; $("mCafe").value=""; $("mPhone").value=""; $("mNotes").value="";
+  $("mDate").value = new Date(Date.now()+864e5).toISOString().slice(0,10);
+  addItemRow(); $("addOv").classList.add("on");
+}
+function closeAdd(){ $("addOv").classList.remove("on"); }
+function addItemRow(){
+  mRows.push({i:0,q:1});
+  drawRows();
+}
+function drawRows(){
+  $("mItems").innerHTML = mRows.map((r,x)=>`
+    <div style="display:flex;gap:8px;margin-bottom:8px;align-items:center">
+      <select onchange="mRows[${x}].i=+this.value;drawTotal()" style="flex:1">
+        ${MENU.map((m,j)=>`<option value="${j}" ${j===r.i?"selected":""}>${esc(m.n)} — ${money(m.p)}</option>`).join("")}
+      </select>
+      <input type="number" min="1" value="${r.q}" style="width:74px;text-align:center"
+        onchange="mRows[${x}].q=+this.value||1;drawTotal()">
+      <button class="b-quiet" style="padding:11px 13px;border:1px solid var(--line);border-radius:12px"
+        onclick="mRows.splice(${x},1);drawRows()">×</button>
+    </div>`).join("");
+  drawTotal();
+}
+function mTotalVal(){ return mRows.reduce((s,r)=>s + MENU[r.i].p * r.q, 0); }
+function drawTotal(){ $("mTotal").textContent = money(mTotalVal()); }
+function saveManual(){
+  const cafe = $("mCafe").value.trim();
+  if(!cafe){ toast("Kafe adı gerekli"); return; }
+  if(!mRows.length){ toast("En az bir ürün ekleyin"); return; }
+  const id = "o"+Date.now()+Math.floor(Math.random()*99);
+  putOrder(id,{
+    no: makeNo(), cafe, phone:$("mPhone").value.trim(), person:"",
+    delivery:$("mDate").value, notes:$("mNotes").value.trim(),
+    items: mRows.map(r=>({name:MENU[r.i].n, qty:r.q, price:MENU[r.i].p})),
+    total: mTotalVal(), status:"new", createdAt:Date.now(), src:"manual"
+  });
+  known.add(id);
+  closeAdd(); toast("Sipariş eklendi");
+}
+function makeNo(){
+  const d=new Date(), p=n=>String(n).padStart(2,"0");
+  return "DN"+String(d.getFullYear()).slice(2)+p(d.getMonth()+1)+p(d.getDate())+"-"+Math.floor(1000+Math.random()*9000);
+}
+
+/* ---- payments ---- */
+let payCafe = "";
+function openPay(name, suggested){
+  payCafe = name;
+  $("payTitle").textContent = "Ödeme al";
+  $("paySub").textContent = name;
+  $("payAmt").value = suggested || "";
+  $("payNote").value = "";
+  $("payOv").classList.add("on");
+}
+function closePay(){ $("payOv").classList.remove("on"); }
+function savePay(){
+  const amt = parseFloat($("payAmt").value);
+  if(!amt || amt<=0){ toast("Tutar girin"); return; }
+  putPayment("p"+Date.now()+Math.floor(Math.random()*99),
+    {cafe:payCafe, amount:amt, note:$("payNote").value.trim()||"ödeme", at:Date.now()});
+  closePay(); closeCafe(); toast("Ödeme kaydedildi");
+}
+
+/* ---- cafe detail ---- */
+function openCafe(name){
+  const a = accounts()[cafeKey(name)]; if(!a) return;
+  $("cafeTitle").textContent = a.name;
+  $("cafeSub").textContent = a.balance>0 ? money(a.balance)+" alacak" : "hesap kapalı";
+  const rows = a.orders.slice().sort((x,y)=>(y.createdAt||0)-(x.createdAt||0)).map(o=>`
+    <div style="display:flex;justify-content:space-between;padding:9px 0;border-bottom:1px solid var(--line);font-size:14.5px">
+      <div><div>${fmtDate(o.delivery)}</div>
+        <div style="color:var(--muted);font-size:12px">${esc(o.no||"")} · ${
+          o.status==="new"?"hazırlanıyor":o.status==="sent"?"teslim edildi":"ödendi"}</div></div>
+      <div class="num" style="font-weight:700">${money(o.total)}</div>
+    </div>`).join("");
+  const pays = Object.values(PAYMENTS).filter(p=>cafeKey(p.cafe)===cafeKey(name))
+    .sort((x,y)=>y.at-x.at).map(p=>`
+    <div style="display:flex;justify-content:space-between;padding:9px 0;border-bottom:1px solid var(--line);font-size:14.5px;color:var(--green)">
+      <div>${new Date(p.at).toLocaleDateString("tr-TR")}<div style="color:var(--muted);font-size:12px">${esc(p.note||"")}</div></div>
+      <div class="num" style="font-weight:700">− ${money(p.amount)}</div>
+    </div>`).join("");
+  $("cafeLedger").innerHTML =
+    `<h2 class="sec">Siparişler</h2>${rows||'<div style="color:var(--muted)">—</div>'}
+     <h2 class="sec">Ödemeler</h2>${pays||'<div style="color:var(--muted)">Henüz ödeme yok</div>'}
+     <div style="display:flex;justify-content:space-between;padding:14px 0 4px;border-top:2px solid var(--gold);margin-top:8px">
+       <b>Kalan</b><b class="num" style="font-size:20px">${money(a.balance)}</b></div>`;
+  $("cafePayBtn").onclick = () => openPay(a.name, a.balance>0?Math.round(a.balance):"");
+  $("cafeWaBtn").onclick = () => sendStatement(a);
+  $("cafeOv").classList.add("on");
+}
+function closeCafe(){ $("cafeOv").classList.remove("on"); }
+function sendStatement(a){
+  const L = [];
+  L.push("*Dolce Noche — Hesap Özeti*");
+  L.push(a.name); L.push("");
+  a.orders.filter(o=>o.status!=="new").forEach(o=>
+    L.push(fmtDate(o.delivery).replace(/^.*· /,"") + " — " + money(o.total)));
+  const paid = a.paid;
+  if(paid) L.push("Ödenen: − " + money(paid));
+  L.push("");
+  L.push("*Kalan: " + money(a.balance) + "*");
+  L.push(""); L.push("Teşekkürler 🤍");
+  const num = String(a.phone||"").replace(/[^0-9]/g,"");
+  window.open((num?"https://wa.me/"+num+"?text=":"https://wa.me/?text=") + encodeURIComponent(L.join("\n")), "_blank");
+}
+
+/* ---- report ---- */
+function report(all){
+  const now = new Date(), t = todayKey();
+  const weekAgo = new Date(Date.now()-6*864e5).toISOString().slice(0,10);
+  const monPre = t.slice(0,7);
+  const sum = f => all.filter(f).reduce((s,o)=>s+(o.total||0),0);
+  $("rToday").textContent = money(sum(o=>o.delivery===t));
+  $("rWeek").textContent  = money(sum(o=>o.delivery>=weekAgo && o.delivery<=t));
+  $("rMonth").textContent = money(sum(o=>(o.delivery||"").startsWith(monPre)));
+  $("rPaid").textContent  = money(Object.values(PAYMENTS)
+    .filter(p=>new Date(p.at).toISOString().slice(0,7)===monPre).reduce((s,p)=>s+(p.amount||0),0));
+  const tally = {}, cafes = {};
+  all.filter(o=>(o.delivery||"").startsWith(monPre)).forEach(o=>{
+    (o.items||[]).forEach(i=>tally[i.name]=(tally[i.name]||0)+(i.qty||0));
+    cafes[o.cafe]=(cafes[o.cafe]||0)+(o.total||0);
+  });
+  const top = Object.entries(tally).sort((a,b)=>b[1]-a[1])[0];
+  const tc  = Object.entries(cafes).sort((a,b)=>b[1]-a[1])[0];
+  $("rTop").textContent  = top ? top[1]+" × "+top[0] : "—";
+  $("rCafe").textContent = tc ? tc[0]+" · "+money(tc[1]) : "—";
+}
+function calcSlice(){
+  const v = parseFloat($("sliceIn").value)||0;
+  $("sliceOut").textContent = money(slicePrice(v));
+}
+
+/* ---- csv ---- */
+function exportCSV(mode){
+  let rows, name;
+  if(mode==="all"){
+    name = "dolce-siparisler";
+    rows = [["Sipariş No","Kafe","Teslimat","Durum","Ürünler","Toplam","Not"]];
+    Object.values(ORDERS).sort((a,b)=>(a.delivery||"").localeCompare(b.delivery||"")).forEach(o=>
+      rows.push([o.no||"", o.cafe||"", o.delivery||"", o.status||"",
+        (o.items||[]).map(i=>i.qty+"x "+i.name).join(" | "), o.total||0, o.notes||""]));
+  }else{
+    name = "dolce-hesaplar";
+    rows = [["Kafe","Teslim edilen","Ödenen","Kalan","Hazırlanıyor"]];
+    Object.values(accounts()).forEach(a=>rows.push([a.name,a.delivered,a.paid,a.balance,a.pending]));
+  }
+  const csv = "\uFEFF" + rows.map(r=>r.map(c=>'"'+String(c).replace(/"/g,'""')+'"').join(";")).join("\n");
+  const url = URL.createObjectURL(new Blob([csv],{type:"text/csv;charset=utf-8"}));
+  const a = document.createElement("a");
+  a.href = url; a.download = name+"-"+todayKey()+".csv"; a.click();
+  URL.revokeObjectURL(url); toast("İndirildi");
+}
+
+/* ---- nav ---- */
+function go(p){
+  ["orders","accounts","bake","report"].forEach(x=>{
+    $("p-"+x).classList.toggle("on", x===p);
+    $("t-"+x).classList.toggle("on", x===p);
+  });
+  window.scrollTo(0,0);
+}
+
+/* ---- boot ---- */
+$("segCafe").classList.toggle("on", VIEW === "cafe");
+$("segDate").classList.toggle("on", VIEW === "date");
+connect();
+setTimeout(()=>{ if(!seeded){ seeded = true; render(); } }, 4000);
+render();
+</script>
+</body>
+</html>
